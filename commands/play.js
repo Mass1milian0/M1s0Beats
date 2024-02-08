@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
-const ytsr = require('ytsr');
-const queueManager = require('../services/queueManager');
-const { boomBoxManager } = require('../services/boomBoxManager');
+const { SlashCommandBuilder, PermissionsBitField } = require('discord.js');
+const queueInstance = require('../services/queueInstance.js');
+const youtubeSearcherInstance = require('../services/youtubeSearcherInstance.js');
+const voiceInstance = require('../services/voiceInstance.js');
 const ytdl = require('ytdl-core');
 module.exports = {
     data: new SlashCommandBuilder()
@@ -9,48 +9,44 @@ module.exports = {
         .setDescription('play a song')
         .addStringOption(option => option.setName('song').setDescription('the song you want to play').setRequired(true)),
     async execute(interaction) {
-        //differ the interaction
-        await interaction.deferReply({ ephemeral: true});
-        //get the song name
+        await interaction.deferReply({ ephemeral: true });
         const songName = interaction.options.getString('song');
-        //check if the song name is a url
-        let searchResults;
-        if(!boomBoxManager.getMusicChannel()){
-            interaction.editReply({ content: 'You need to set a music channel first, use the command /setmusicchannel', ephemeral: true });
-            return;
+        const voiceChannel = interaction.member.voice.channel;
+        const musicChannel = voiceInstance.getMusicChannel();
+        if (!voiceChannel) {
+            return await interaction.editReply('You need to be in a voice channel to play music!');
         }
-        await boomBoxManager.joinVoiceChannel(interaction)
-        //list the results with buttons on the bottom to select the song
-        if (songName.startsWith('https://www.youtube.com/watch?v=')) {
-            //obtain video info
-            searchResults = await ytdl.getInfo(songName);
-            //add the song to the queue
-            queueManager.enqueue({
-                title: searchResults.videoDetails.title,
-                url: searchResults.videoDetails.video_url,
-                thumbnail: searchResults.videoDetails.thumbnails[0].url,
+        if(!musicChannel){
+            return await interaction.editReply('Music channel is not set! set it with /setmusicchannel');
+        }
+        const permissions = voiceChannel.permissionsFor(interaction.client.user);
+        if (!permissions.has(PermissionsBitField.Flags.Connect) || !permissions.has(PermissionsBitField.Flags.Speak)) {
+            return await interaction.editReply('I need the permissions to join and speak in your voice channel!');
+        }
+        // let's check if the link is a youtube link or a search, youtube links can be played directly
+        // they start with https://www.youtube.com/watch?v= or https://youtu.be/
+        // if it's not a youtube link, we will search for it
+
+        let regex = /^(https?\:\/\/)?(www\.youtube\.com|youtu\.?be)\/.+$/;
+        if (regex.test(songName)) {
+            // it's a youtube link, we can play it directly
+            let songInfo = await ytdl.getInfo(songName);
+            await voiceInstance.joinVoiceChannel(interaction.member.voice.channel.id, interaction.guildId, interaction.guild);
+            queueInstance.enqueue({
+                title: songInfo.videoDetails.title,
+                url: songName,
+                thumbnail: songInfo.videoDetails.thumbnails[0].url,
                 requester: interaction.user.tag,
-                guildid: interaction.guild.id,
-                duration: searchResults.videoDetails.lengthSeconds,
+                duration: songInfo.videoDetails.lengthSeconds,
                 currentlyPlaying: false
             });
-            boomBoxManager.playQueue();
-            interaction.editReply({ content: 'The song has been added to the queue', ephemeral: true });
+            await interaction.editReply({ content: 'Song added to the queue', components: [], ephemeral: true });
         } else {
-            //search for the song
-            searchResults = await ytsr(songName, { limit: 6 });
-            boomBoxManager.setResultHolder(searchResults)
-            let results = searchResults.items.map((item, index) => {
-                if (item.type !== 'video') return;
-                return {
-                    label: item.title,
-                    description: item.author.name,
-                    value: "" + index,
-                }
-            });
-            //remove the undefined elements
-            results = results.filter(element => element !== undefined);
-            //send the message
+            //means it's a search query
+            let { filtered } = await youtubeSearcherInstance.search(songName);
+            await voiceInstance.joinVoiceChannel(interaction.member.voice.channel.id, interaction.guildId, interaction.guild);
+
+            //dropdown
             await interaction.editReply({
                 content: 'Select the song you want to play',
                 components: [
@@ -60,32 +56,27 @@ module.exports = {
                             {
                                 type: 3,
                                 custom_id: 'play',
-                                options: results
+                                options: filtered,
+                                placeholder: 'Select a song',
                             }
                         ]
                     }
                 ],
-                ephemeral: true
-            });
+                ephemeral: true,
+            })
         }
     },
     async executeMenu(interaction) {
-        //get the selected song
-        const results = boomBoxManager.getResultHolder()
-        const selectedSong = results.items[interaction.values[0]];
-        //add the song to the queue
-        queueManager.enqueue({
+        const lastSearch = await youtubeSearcherInstance.getLatestSearch();
+        const selectedSong = lastSearch.items[interaction.values[0]];
+        queueInstance.enqueue({
             title: selectedSong.title,
             url: selectedSong.url,
             thumbnail: selectedSong.bestThumbnail.url,
             requester: interaction.user.tag,
-            guildid: interaction.guild.id,
             duration: selectedSong.duration,
             currentlyPlaying: false
         });
-        //play the queue
-        boomBoxManager.playQueue();
-        //respond to the interaction so it' not marked as failed
-        await interaction.reply({ content: 'The song has been added to the queue', ephemeral: true });
+        await interaction.reply({ content: 'Song added to the queue', components: [], ephemeral: true });
     }
 };

@@ -1,13 +1,13 @@
 const { SlashCommandBuilder } = require('discord.js');
-const {boomBoxManager} = require('../services/boomBoxManager');
+const voiceInstance = require('../services/voiceInstance.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('resume')
-        .setDescription('resume the music'),
+        .setDescription('resumes the current song'),
     async execute(interaction) {
-        //resume the music
-        boomBoxManager.resumeSong();
+        //skip the song
+        voiceInstance.resumeAudio();
         //send the message
-        await interaction.deferUpdate()
+        await interaction.reply({content: `Music Resumed`, ephemeral: true});
     }
 }

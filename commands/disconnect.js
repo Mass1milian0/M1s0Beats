@@ -3,13 +3,13 @@ const voiceInstance = require('../services/voiceInstance.js');
 const queueInstance = require('../services/queueInstance.js');
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('stop')
-        .setDescription('stops the player and clears the queue'),
+        .setName('disconnect')
+        .setDescription('disconnects the bot from the voice channel'),
     async execute(interaction) {
         //skip the song
-        voiceInstance.stopAudio();
-        queueInstance.queueClear();
+        queueInstance.queueClear(true);
+        voiceInstance.leaveVoiceChannel(interaction.guildId);
         //send the message
-        await interaction.reply({content: `player stopped and queue cleared`, ephemeral: true});
+        await interaction.reply({content: `bot disconnected`, ephemeral: true});
     }
 }

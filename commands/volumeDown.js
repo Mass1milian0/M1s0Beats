@@ -1,13 +1,16 @@
 const { SlashCommandBuilder } = require('discord.js');
-const {boomBoxManager} = require('../services/boomBoxManager');
+const voiceInstance = require('../services/voiceInstance.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('volumedown')
-        .setDescription('turn down the volume'),
+        .setDescription('decreases the volume by 10%'),
     async execute(interaction) {
-        //turn down the volume
-        boomBoxManager.decreaseVolume();
-        //reply but don't send anything just so the interaction is marked as done
-        await interaction.deferUpdate()
+        //skip the song
+        let current = voiceInstance.getVolume();
+        if (current > 0) {
+            voiceInstance.setVolume(current - 0.1);
+        }
+        //send the message
+        await interaction.deferUpdate();
     }
 }

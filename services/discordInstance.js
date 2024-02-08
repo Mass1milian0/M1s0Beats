@@ -1,8 +1,5 @@
-const Boombox = require('../classes/BoomboxHandler.js');
-const discordVoice = require('@discordjs/voice');
-const discord = require('discord.js');
-const { Client, GatewayIntentBits } = require('discord.js');
-const ytdl = require('ytdl-core');
+const discordController = require('../classes/discordController.js');
+const {Client, GatewayIntentBits} = require('discord.js');
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -22,5 +19,5 @@ const client = new Client({
 
 client.login(process.env.TOKEN);
 
-const boomBoxManager = new Boombox(discord,client,discordVoice,ytdl);
-module.exports = {boomBoxManager,client};
+const discordInstance = new discordController(client);
+module.exports = {discordInstance, client};
