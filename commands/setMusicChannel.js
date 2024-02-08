@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const {boomBoxManager} = require('../services/boomBoxManager');
+const voiceInstance = require('../services/voiceInstance.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('setmusicchannel')
@@ -9,8 +9,8 @@ module.exports = {
         //get the channel
         const channel = interaction.options.getChannel('channel');
         //set the channel
-        boomBoxManager.setMusicChannel(channel);
+        voiceInstance.setMusicChannel(channel);
         //send the message
-        await interaction.reply(`the music channel is now set to ${channel}`, { ephemeral: true });
+        await interaction.reply({content: `the music channel is now set to ${channel}`, ephemeral: true});
     }
 }

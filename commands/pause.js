@@ -1,14 +1,13 @@
 const { SlashCommandBuilder } = require('discord.js');
-const {boomBoxManager} = require('../services/boomBoxManager');
-
+const voiceInstance = require('../services/voiceInstance.js');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('pause')
-        .setDescription('pause the music'),
+        .setDescription('pauses the current song'),
     async execute(interaction) {
-        //pause the music
-        boomBoxManager.pauseSong();
+        //pause the song
+        voiceInstance.pauseAudio();
         //send the message
-        await interaction.deferUpdate()
+        await interaction.reply({content: `Music Paused`, ephemeral: true});
     }
 }
