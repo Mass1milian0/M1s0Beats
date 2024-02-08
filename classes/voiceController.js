@@ -64,6 +64,7 @@ class voiceController extends eventEmitter {
 
     async getCurrentPlaybackTime() {
         if (!this.currentAudioPlayer) throw new Error("No audioPlayer has been found");
+        if(!this.currentSong) return 0;
         return this.currentSong.playbackDuration;
     }
 
